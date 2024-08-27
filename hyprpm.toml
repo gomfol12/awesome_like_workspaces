@@ -2,7 +2,7 @@
 name = "awesome_like_workspaces"
 authors = ["gomfol12"]
 commit_pins = [
-    ["9a09eac79b85c846e3a865a9078a3f8ff65a9259", "dc5833c2438ff7f74ce268d995853ddf0b633d39"], # 0.42.0
+    ["9a09eac79b85c846e3a865a9078a3f8ff65a9259", "d7176fb37c2099b3b70d3132006f736902a6b552"], # 0.42.0
 ]
 
 [awesome_like_workspaces]
