@@ -2,7 +2,7 @@
 Emulates per monitor workspaces on Hyprland. Like i am used to from awesome wm.
 
 ## Installation
-with hyprpm ((hyprland wiki)[https://wiki.hyprland.org/Plugins/Using-Plugins/]):
+with hyprpm ([hyprland wiki](https://wiki.hyprland.org/Plugins/Using-Plugins/)):
 
 ```
 hyprpm add https://github.com/gomfol12/awesome_like_workspaces
@@ -63,5 +63,5 @@ This plugin implements three new keybind dispatchers:
 All of them are local to the current focused monitor.
 
 ## Inspiration and alternatives
-- (hyprsome)[https://github.com/sopa0/hyprsome]
-- (split-monitor-workspaces)[https://github.com/Duckonaut/split-monitor-workspaces]
+- [hyprsome](https://github.com/sopa0/hyprsome)
+- [split-monitor-workspaces](https://github.com/Duckonaut/split-monitor-workspaces)
