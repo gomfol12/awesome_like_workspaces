@@ -1,0 +1,8 @@
+#pragma once
+
+// clang-format off
+#define VERSION "@PROJECT_VERSION@"
+#define NAME "@PROJECT_NAME@"
+#define DESCRIPTION "@PROJECT_DESCRIPTION@"
+#define AUTHOR "@PROJECT_AUTHOR@"
+// clang-format on
