@@ -54,11 +54,13 @@ Config variables:
 - `count` - Number of workspaces per monitor
 - `priority` - The monitor with the lowest priority will have workspace 1 and counting upwards to count workspaces. Aka the monitor where the counting starts.
 
-This plugin implements three new keybind dispatchers:
+This plugin implements these new keybind dispatchers:
 
 - `alw-workspace` - Switch to a workspace
 - `alw-movetoworkspace` - Move active window to a workspace
 - `alw-movetoworkspacesilent` - Move active window to a workspace without changing the active workspace
+- `alw-focusnextmonitor` - Focus the next monitor
+- `alw-movetonextmonitor` - Move the active window to the next monitor
 
 All of them are local to the current focused monitor.
 
