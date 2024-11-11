@@ -20,13 +20,13 @@ static std::map<uint64_t, int> config_monitor_priority;
 static uint64_t currnet_workspace_id = 1;
 
 static int get_config_value(const std::string &);
-static CMonitor *get_current_monitor();
-static const std::string &get_workspace_from_monitor(CMonitor *, const std::string &);
+static PHLMONITOR get_current_monitor();
+static const std::string &get_workspace_from_monitor(PHLMONITOR, const std::string &);
 static void alw_workspace(const std::string &);
 static void alw_movetoworkspace(const std::string &);
 static void alw_movetoworkspacesilent(const std::string &);
-static void create_workspaces(CMonitor *);
-static void remove_workspaces(CMonitor *);
+static void create_workspaces(PHLMONITOR);
+static void remove_workspaces(PHLMONITOR);
 static void create_all_workspaces();
 static void remove_all_workspaces();
 static void load_all_config_values();
@@ -44,9 +44,9 @@ static int get_config_value(const std::string &name)
     return **value;
 }
 
-static CMonitor *get_current_monitor()
+static PHLMONITOR get_current_monitor()
 {
-    CMonitor *monitor = g_pCompositor->m_pLastMonitor.lock().get();
+    PHLMONITOR monitor = g_pCompositor->m_pLastMonitor.lock();
 
     if (monitor == nullptr)
     {
@@ -56,7 +56,7 @@ static CMonitor *get_current_monitor()
     return monitor;
 }
 
-static const std::string &get_workspace_from_monitor(CMonitor *monitor, const std::string &workspace)
+static const std::string &get_workspace_from_monitor(PHLMONITOR monitor, const std::string &workspace)
 {
     int workspace_index = std::stoi(workspace) - 1;
 
@@ -86,13 +86,13 @@ static void alw_movetoworkspacesilent(const std::string &workspace)
                                                       get_workspace_from_monitor(get_current_monitor(), workspace));
 }
 
-static void get_next_monitor(CMonitor *monitor, CMonitor **next_monitor)
+static void get_next_monitor(PHLMONITOR monitor, PHLMONITOR *next_monitor)
 {
     for (int i = 0; i < g_pCompositor->m_vMonitors.size(); i++)
     {
-        if (g_pCompositor->m_vMonitors[i].get() == monitor)
+        if (g_pCompositor->m_vMonitors[i] == monitor)
         {
-            *next_monitor = g_pCompositor->m_vMonitors[(i + 1) % g_pCompositor->m_vMonitors.size()].get();
+            *next_monitor = g_pCompositor->m_vMonitors[(i + 1) % g_pCompositor->m_vMonitors.size()];
             return;
         }
     }
@@ -103,8 +103,8 @@ static void get_next_monitor(CMonitor *monitor, CMonitor **next_monitor)
 
 static void alw_focusnextmonitor(const std::string &)
 {
-    CMonitor *monitor = get_current_monitor();
-    CMonitor *next_monitor;
+    PHLMONITOR monitor = get_current_monitor();
+    PHLMONITOR next_monitor;
     get_next_monitor(monitor, &next_monitor);
 
     HyprlandAPI::invokeHyprctlCommand("dispatch", "focusmonitor " + std::to_string(next_monitor->ID));
@@ -112,14 +112,14 @@ static void alw_focusnextmonitor(const std::string &)
 
 static void alw_movetonextmonitor(const std::string &)
 {
-    CMonitor *monitor = get_current_monitor();
-    CMonitor *next_monitor;
+    PHLMONITOR monitor = get_current_monitor();
+    PHLMONITOR next_monitor;
     get_next_monitor(monitor, &next_monitor);
 
     HyprlandAPI::invokeHyprctlCommand("dispatch", "movetoworkspace " + next_monitor->activeWorkspace->m_szName);
 }
 
-static void create_workspaces(CMonitor *monitor)
+static void create_workspaces(PHLMONITOR monitor)
 {
     // skip
     if (monitor->activeMonitorRule.disabled || monitor->isMirror())
@@ -141,7 +141,7 @@ static void create_workspaces(CMonitor *monitor)
     }
 }
 
-static void remove_workspaces(CMonitor *monitor)
+static void remove_workspaces(PHLMONITOR monitor)
 {
     if (monitor_workspaces.contains(monitor->ID))
     {
@@ -160,12 +160,12 @@ static void remove_workspaces(CMonitor *monitor)
 static void create_all_workspaces()
 {
     // copy monitors
-    std::vector<CMonitor *> monitors;
+    std::vector<PHLMONITOR> monitors;
     std::transform(g_pCompositor->m_vMonitors.begin(), g_pCompositor->m_vMonitors.end(), std::back_inserter(monitors),
-                   [](const auto &monitor) { return monitor.get(); });
+                   [](const auto &monitor) { return monitor; });
 
     // reorder monitors with priority
-    std::sort(monitors.begin(), monitors.end(), [](const CMonitor *a, const CMonitor *b) {
+    std::sort(monitors.begin(), monitors.end(), [](const PHLMONITOR a, const PHLMONITOR b) {
         return config_monitor_priority[a->ID] < config_monitor_priority[b->ID];
     });
 
@@ -180,7 +180,7 @@ static void remove_all_workspaces()
     while (!monitor_workspaces.empty())
     {
         uint64_t monitor_id = monitor_workspaces.begin()->first;
-        CMonitor *monitor = g_pCompositor->getMonitorFromID(monitor_id);
+        PHLMONITOR monitor = g_pCompositor->getMonitorFromID(monitor_id);
         if (monitor != nullptr)
         {
             remove_workspaces(monitor);
@@ -213,12 +213,12 @@ static void configReloaded_callback(void *, SCallbackInfo &, std::any)
 
 static void monitorAdded_callback(void *, SCallbackInfo &, std::any data)
 {
-    create_workspaces(std::any_cast<CMonitor *>(data));
+    create_workspaces(std::any_cast<PHLMONITOR>(data));
 }
 
 static void monitorRemoved_callback(void *, SCallbackInfo &, std::any data)
 {
-    remove_workspaces(std::any_cast<CMonitor *>(data));
+    remove_workspaces(std::any_cast<PHLMONITOR>(data));
 }
 
 // Do NOT change this function.
