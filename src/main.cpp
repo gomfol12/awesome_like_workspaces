@@ -10,7 +10,7 @@
 
 inline HANDLE PHANDLE = nullptr;
 
-static CColor notification_color{1.0, 0.2, 0.2, 1.0};
+static CHyprColor notification_color{1.0, 0.2, 0.2, 1.0};
 static SP<HOOK_CALLBACK_FN> configReloaded_callback_ptr;
 static SP<HOOK_CALLBACK_FN> monitorAdded_callback_ptr;
 static SP<HOOK_CALLBACK_FN> monitorRemoved_callback_ptr;
