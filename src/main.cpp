@@ -19,14 +19,17 @@ static std::map<uint64_t, int> config_monitor_workspace_count;
 static std::map<uint64_t, int> config_monitor_priority;
 static uint64_t currnet_workspace_id = 1;
 
-static int get_config_value(const std::string &);
+static int get_config_value(const std::string &name);
 static PHLMONITOR get_current_monitor();
-static const std::string &get_workspace_from_monitor(PHLMONITOR, const std::string &);
-static void alw_workspace(const std::string &);
-static void alw_movetoworkspace(const std::string &);
-static void alw_movetoworkspacesilent(const std::string &);
-static void create_workspaces(PHLMONITOR);
-static void remove_workspaces(PHLMONITOR);
+static const std::string &get_workspace_from_monitor(PHLMONITOR monitor, const std::string &workspace);
+static SDispatchResult alw_workspace(const std::string &workspace);
+static SDispatchResult alw_movetoworkspace(const std::string &workspace);
+static SDispatchResult alw_movetoworkspacesilent(const std::string &workspace);
+static void get_next_monitor(PHLMONITOR monitor, PHLMONITOR *next_monitor);
+static SDispatchResult alw_focusnextmonitor(const std::string &);
+static SDispatchResult alw_movetonextmonitor(const std::string &);
+static void create_workspaces(PHLMONITOR monitor);
+static void remove_workspaces(PHLMONITOR monitor);
 static void create_all_workspaces();
 static void remove_all_workspaces();
 static void load_all_config_values();
@@ -68,22 +71,37 @@ static const std::string &get_workspace_from_monitor(PHLMONITOR monitor, const s
     return monitor_workspaces[monitor->ID][workspace_index]; // 0 indexed
 }
 
-static void alw_workspace(const std::string &workspace)
+static SDispatchResult alw_workspace(const std::string &workspace)
 {
-    HyprlandAPI::invokeHyprctlCommand("dispatch",
-                                      "workspace " + get_workspace_from_monitor(get_current_monitor(), workspace));
+    std::string out = HyprlandAPI::invokeHyprctlCommand(
+        "dispatch", "workspace " + get_workspace_from_monitor(get_current_monitor(), workspace));
+
+    if (out.find("ok") != std::string::npos)
+        return {false, true, out};
+
+    return {false, false, "alw_workspace: " + out};
 }
 
-static void alw_movetoworkspace(const std::string &workspace)
+static SDispatchResult alw_movetoworkspace(const std::string &workspace)
 {
-    HyprlandAPI::invokeHyprctlCommand("dispatch", "movetoworkspace " +
-                                                      get_workspace_from_monitor(get_current_monitor(), workspace));
+    std::string out = HyprlandAPI::invokeHyprctlCommand(
+        "dispatch", "movetoworkspace " + get_workspace_from_monitor(get_current_monitor(), workspace));
+
+    if (out.find("ok") != std::string::npos)
+        return {false, true, out};
+
+    return {false, false, "alw_movetoworkspace: " + out};
 }
 
-static void alw_movetoworkspacesilent(const std::string &workspace)
+static SDispatchResult alw_movetoworkspacesilent(const std::string &workspace)
 {
-    HyprlandAPI::invokeHyprctlCommand("dispatch", "movetoworkspacesilent " +
-                                                      get_workspace_from_monitor(get_current_monitor(), workspace));
+    std::string out = HyprlandAPI::invokeHyprctlCommand(
+        "dispatch", "movetoworkspacesilent " + get_workspace_from_monitor(get_current_monitor(), workspace));
+
+    if (out.find("ok") != std::string::npos)
+        return {false, true, out};
+
+    return {false, false, "alw_movetoworkspacesilent: " + out};
 }
 
 static void get_next_monitor(PHLMONITOR monitor, PHLMONITOR *next_monitor)
@@ -101,22 +119,33 @@ static void get_next_monitor(PHLMONITOR monitor, PHLMONITOR *next_monitor)
     return;
 }
 
-static void alw_focusnextmonitor(const std::string &)
+static SDispatchResult alw_focusnextmonitor(const std::string &)
 {
     PHLMONITOR monitor = get_current_monitor();
     PHLMONITOR next_monitor;
     get_next_monitor(monitor, &next_monitor);
 
-    HyprlandAPI::invokeHyprctlCommand("dispatch", "focusmonitor " + std::to_string(next_monitor->ID));
+    std::string out = HyprlandAPI::invokeHyprctlCommand("dispatch", "focusmonitor " + std::to_string(next_monitor->ID));
+
+    if (out.find("ok") != std::string::npos)
+        return {false, true, out};
+
+    return {false, false, "alw_focusnextmonitor: " + out};
 }
 
-static void alw_movetonextmonitor(const std::string &)
+static SDispatchResult alw_movetonextmonitor(const std::string &)
 {
     PHLMONITOR monitor = get_current_monitor();
     PHLMONITOR next_monitor;
     get_next_monitor(monitor, &next_monitor);
 
-    HyprlandAPI::invokeHyprctlCommand("dispatch", "movetoworkspace " + next_monitor->activeWorkspace->m_szName);
+    std::string out =
+        HyprlandAPI::invokeHyprctlCommand("dispatch", "movetoworkspace " + next_monitor->activeWorkspace->m_szName);
+
+    if (out.find("ok") != std::string::npos)
+        return {false, true, out};
+
+    return {false, false, "alw_movetonextmonitor: " + out};
 }
 
 static void create_workspaces(PHLMONITOR monitor)
@@ -248,14 +277,13 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
         HyprlandAPI::addConfigValue(PHANDLE, "plugin:" NAME ":" + monitor->szName + ":priority",
                                     Hyprlang::INT{std::numeric_limits<int>::max()});
     }
-    HyprlandAPI::addDispatcher(PHANDLE, "alw-workspace", alw_workspace);
-    HyprlandAPI::addDispatcher(PHANDLE, "alw-movetoworkspace", alw_movetoworkspace);
-    HyprlandAPI::addDispatcher(PHANDLE, "alw-movetoworkspacesilent", alw_movetoworkspacesilent);
-    HyprlandAPI::addDispatcher(PHANDLE, "alw-focusnextmonitor", alw_focusnextmonitor);
-    HyprlandAPI::addDispatcher(PHANDLE, "alw-movetonextmonitor", alw_movetonextmonitor);
+    HyprlandAPI::addDispatcherV2(PHANDLE, "alw-workspace", alw_workspace);
+    HyprlandAPI::addDispatcherV2(PHANDLE, "alw-movetoworkspace", alw_movetoworkspace);
+    HyprlandAPI::addDispatcherV2(PHANDLE, "alw-movetoworkspacesilent", alw_movetoworkspacesilent);
+    HyprlandAPI::addDispatcherV2(PHANDLE, "alw-focusnextmonitor", alw_focusnextmonitor);
+    HyprlandAPI::addDispatcherV2(PHANDLE, "alw-movetonextmonitor", alw_movetonextmonitor);
 
     HyprlandAPI::reloadConfig();
-    g_pConfigManager->tick();
     load_all_config_values();
 
     configReloaded_callback_ptr =
