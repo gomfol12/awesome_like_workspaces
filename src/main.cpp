@@ -49,7 +49,7 @@ static int get_config_value(const std::string &name)
 
 static PHLMONITOR get_current_monitor()
 {
-    PHLMONITOR monitor = g_pCompositor->m_pLastMonitor.lock();
+    PHLMONITOR monitor = g_pCompositor->m_lastMonitor.lock();
 
     if (monitor == nullptr)
     {
@@ -63,12 +63,12 @@ static const std::string &get_workspace_from_monitor(PHLMONITOR monitor, const s
 {
     int workspace_index = std::stoi(workspace) - 1;
 
-    if (workspace_index < 0 || workspace_index >= config_monitor_workspace_count[monitor->ID])
+    if (workspace_index < 0 || workspace_index >= config_monitor_workspace_count[monitor->m_id])
     {
-        return monitor_workspaces[monitor->ID].back();
+        return monitor_workspaces[monitor->m_id].back();
     }
 
-    return monitor_workspaces[monitor->ID][workspace_index]; // 0 indexed
+    return monitor_workspaces[monitor->m_id][workspace_index]; // 0 indexed
 }
 
 static SDispatchResult alw_workspace(const std::string &workspace)
@@ -106,11 +106,11 @@ static SDispatchResult alw_movetoworkspacesilent(const std::string &workspace)
 
 static void get_next_monitor(PHLMONITOR monitor, PHLMONITOR *next_monitor)
 {
-    for (int i = 0; i < g_pCompositor->m_vMonitors.size(); i++)
+    for (int i = 0; i < g_pCompositor->m_monitors.size(); i++)
     {
-        if (g_pCompositor->m_vMonitors[i] == monitor)
+        if (g_pCompositor->m_monitors[i] == monitor)
         {
-            *next_monitor = g_pCompositor->m_vMonitors[(i + 1) % g_pCompositor->m_vMonitors.size()];
+            *next_monitor = g_pCompositor->m_monitors[(i + 1) % g_pCompositor->m_monitors.size()];
             return;
         }
     }
@@ -125,7 +125,8 @@ static SDispatchResult alw_focusnextmonitor(const std::string &)
     PHLMONITOR next_monitor;
     get_next_monitor(monitor, &next_monitor);
 
-    std::string out = HyprlandAPI::invokeHyprctlCommand("dispatch", "focusmonitor " + std::to_string(next_monitor->ID));
+    std::string out =
+        HyprlandAPI::invokeHyprctlCommand("dispatch", "focusmonitor " + std::to_string(next_monitor->m_id));
 
     if (out.find("ok") != std::string::npos)
         return {false, true, out};
@@ -140,7 +141,7 @@ static SDispatchResult alw_movetonextmonitor(const std::string &)
     get_next_monitor(monitor, &next_monitor);
 
     std::string out =
-        HyprlandAPI::invokeHyprctlCommand("dispatch", "movetoworkspace " + next_monitor->activeWorkspace->m_szName);
+        HyprlandAPI::invokeHyprctlCommand("dispatch", "movetoworkspace " + next_monitor->m_activeWorkspace->m_name);
 
     if (out.find("ok") != std::string::npos)
         return {false, true, out};
@@ -151,38 +152,38 @@ static SDispatchResult alw_movetonextmonitor(const std::string &)
 static void create_workspaces(PHLMONITOR monitor)
 {
     // skip
-    if (monitor->activeMonitorRule.disabled || monitor->isMirror())
+    if (monitor->m_activeMonitorRule.disabled || monitor->isMirror())
         return;
 
-    for (int i = 0; i < config_monitor_workspace_count[monitor->ID]; i++)
+    for (int i = 0; i < config_monitor_workspace_count[monitor->m_id]; i++)
     {
         int64_t workspace_id = currnet_workspace_id++;
 
-        monitor_workspaces[monitor->ID].push_back(std::to_string(workspace_id));
+        monitor_workspaces[monitor->m_id].push_back(std::to_string(workspace_id));
         PHLWORKSPACE workspace = g_pCompositor->getWorkspaceByName(std::to_string(workspace_id));
 
         if (workspace.get() == nullptr)
         {
-            workspace = g_pCompositor->createNewWorkspace(workspace_id, monitor->ID);
+            workspace = g_pCompositor->createNewWorkspace(workspace_id, monitor->m_id);
         }
         g_pCompositor->moveWorkspaceToMonitor(workspace, monitor);
-        workspace->m_bPersistent = true;
+        workspace->m_persistent = true;
     }
 }
 
 static void remove_workspaces(PHLMONITOR monitor)
 {
-    if (monitor_workspaces.contains(monitor->ID))
+    if (monitor_workspaces.contains(monitor->m_id))
     {
-        for (const auto &workspace : monitor_workspaces[monitor->ID])
+        for (const auto &workspace : monitor_workspaces[monitor->m_id])
         {
             PHLWORKSPACE workspace_ptr = g_pCompositor->getWorkspaceByName(workspace);
             if (workspace_ptr.get() != nullptr)
             {
-                workspace_ptr->m_bPersistent = false;
+                workspace_ptr->m_persistent = false;
             }
         }
-        monitor_workspaces.erase(monitor->ID);
+        monitor_workspaces.erase(monitor->m_id);
     }
 }
 
@@ -190,12 +191,12 @@ static void create_all_workspaces()
 {
     // copy monitors
     std::vector<PHLMONITOR> monitors;
-    std::transform(g_pCompositor->m_vMonitors.begin(), g_pCompositor->m_vMonitors.end(), std::back_inserter(monitors),
+    std::transform(g_pCompositor->m_monitors.begin(), g_pCompositor->m_monitors.end(), std::back_inserter(monitors),
                    [](const auto &monitor) { return monitor; });
 
     // reorder monitors with priority
     std::sort(monitors.begin(), monitors.end(), [](const PHLMONITOR a, const PHLMONITOR b) {
-        return config_monitor_priority[a->ID] < config_monitor_priority[b->ID];
+        return config_monitor_priority[a->m_id] < config_monitor_priority[b->m_id];
     });
 
     for (auto &monitor : monitors)
@@ -225,10 +226,11 @@ static void remove_all_workspaces()
 
 static void load_all_config_values()
 {
-    for (auto &monitor : g_pCompositor->m_vMonitors)
+    for (auto &monitor : g_pCompositor->m_monitors)
     {
-        config_monitor_workspace_count[monitor->ID] = get_config_value("plugin:" NAME ":" + monitor->szName + ":count");
-        config_monitor_priority[monitor->ID] = get_config_value("plugin:" NAME ":" + monitor->szName + ":priority");
+        config_monitor_workspace_count[monitor->m_id] =
+            get_config_value("plugin:" NAME ":" + monitor->m_name + ":count");
+        config_monitor_priority[monitor->m_id] = get_config_value("plugin:" NAME ":" + monitor->m_name + ":priority");
     }
 }
 
@@ -271,10 +273,10 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
         throw std::runtime_error("[" NAME "] Version mismatch");
     }
 
-    for (auto &monitor : g_pCompositor->m_vMonitors)
+    for (auto &monitor : g_pCompositor->m_monitors)
     {
-        HyprlandAPI::addConfigValue(PHANDLE, "plugin:" NAME ":" + monitor->szName + ":count", Hyprlang::INT{10});
-        HyprlandAPI::addConfigValue(PHANDLE, "plugin:" NAME ":" + monitor->szName + ":priority",
+        HyprlandAPI::addConfigValue(PHANDLE, "plugin:" NAME ":" + monitor->m_name + ":count", Hyprlang::INT{10});
+        HyprlandAPI::addConfigValue(PHANDLE, "plugin:" NAME ":" + monitor->m_name + ":priority",
                                     Hyprlang::INT{std::numeric_limits<int>::max()});
     }
     HyprlandAPI::addDispatcherV2(PHANDLE, "alw-workspace", alw_workspace);
