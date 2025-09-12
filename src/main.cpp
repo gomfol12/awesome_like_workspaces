@@ -167,7 +167,7 @@ static void create_workspaces(PHLMONITOR monitor)
             workspace = g_pCompositor->createNewWorkspace(workspace_id, monitor->m_id);
         }
         g_pCompositor->moveWorkspaceToMonitor(workspace, monitor);
-        workspace->m_persistent = true;
+        workspace->setPersistent(true);
     }
 }
 
@@ -180,7 +180,7 @@ static void remove_workspaces(PHLMONITOR monitor)
             PHLWORKSPACE workspace_ptr = g_pCompositor->getWorkspaceByName(workspace);
             if (workspace_ptr.get() != nullptr)
             {
-                workspace_ptr->m_persistent = false;
+                workspace_ptr->setPersistent(false);
             }
         }
         monitor_workspaces.erase(monitor->m_id);
